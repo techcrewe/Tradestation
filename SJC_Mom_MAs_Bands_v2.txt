@@ -1,0 +1,330 @@
+inputs: HighBandLength( 5 );
+inputs: LowBandLength( 5 );
+inputs: BandAvgType("X");
+//inputs: AlertShtColor(yellow), AlertLngColor(yellow);
+inputs: StopColor(yellow), TargetColor (blue);
+inputs: FastMAperiod (5), MedMAperiod(8), SlowMAperiod (21), MAtype("S");
+inputs: FastLength( 12 ), SlowLength( 26 ), MACDLength( 9 );
+inputs: Tgt1 (1), Tgt2 (1.5), Tgt3 (2), ATRmultiplier (1.5);
+inputs: Starttime ( 700 ), EndTime ( 2100 );
+
+inputs: Interval_1(60), // number of minutes, or ADE.Daily, ADE.Weekly, ADE.Monthly
+		Interval_2(30),
+		Interval_3(15),
+		DeriveBars(0),
+		Sym(GetSymbolName),
+		UseFile(ADE.UseFile);
+
+variables:	BandHigh( 0 ), BandLow(0), FastMA(0), MedMA(0), SlowMA(0), XSlowMA(0), FastMA_HTF1(0), MedMA_HTF1(0), SlowMA_HTF1(0);
+variables: 	MyMACD1(0), MyMACD2(0), MyMACD3(0), 
+			MACDAvg1(0), MACDAvg2(0), MACDAvg3(0), 
+			PrevMACDAvg1(0), PrevMACDAvg2(0), PrevMACDAvg3(0),
+			MACDDiff1(0), MACDDiff2(0), MACDDiff3(0),
+			SMA1 ( 0 ), SMA2 ( 0 ), SMA3 ( 0 ), RSI1 ( 0 ), RSI3 ( 0 );
+variables: 	LongTriggered (false), ShortTriggered (false), Offset(0), Longsetup (false), Shortsetup (false);
+variables: 	ATR (0), TP1 (0), TP2(0), TP3(0), STP1 (0), StpRng (0), TgtColor(TargetColor);;
+
+variables: 	SmoothingFactor( 2 / ( MACDLength + 1 ) ), TimeNow ( 0 ),
+			Class("OHLCV"), Bartime(0), Interval1(0), Interval2(0), Interval3(0),
+			SetupRating ( "" ), MACD1_Rating ( 0 ), MACD2_Rating ( 0 ), HTF1_Rating ( 0 ), SMA2_Rating ( 0 ), MACD3_Rating ( 0 ), SMA3_Rating ( 0 ),
+			RSI_Rating ( 0 ), SlowMA_Rating ( 0 ), BarShift1 ( 0 );
+
+TimeNow = Time;
+
+Bartime = BarInterval;
+
+If Bartime <=15 then
+Begin
+	Interval1 = 60;
+	Interval2 = 30;
+	//Interval3 = 15;
+	end
+Else if (Bartime > 15 and Bartime <=30) then
+Begin
+	Interval1 = 240;
+	Interval2 = 60;
+	//Interval3 = 30;
+	End
+Else if (Bartime > 30 and Bartime <= 60) then
+Begin
+	Interval1 = 240;
+	Interval2 = 60;
+	//Interval3 = 60;
+	End
+Else if (Bartime > 60 and Bartime <= 240) then
+Begin
+	Interval1 = ADE.Daily;
+	BarShift1 = round(1440/Bartime,0);
+	Interval2 = ADE.Daily;
+	//Interval3 = 240;
+	End
+Else if Bartype = 2 then
+Begin
+	Interval1 = ADE.Monthly;
+	Interval2 = ADE.Weekly;
+	//Interval3 = ADE.Daily;
+	End;
+
+//BarShift1 = round(Interval1/Bartime,0) + 1;	
+	
+	
+If BandAvgType = "X" then
+Begin
+BandHigh = XAverage(High, HighBandLength);
+BandLow = XAverage(Low, LowBandLength);
+end
+Else
+begin
+BandHigh = AverageFC( High, HighBandLength );
+BandLow = AverageFC( Low, LowBandLength );
+end;
+
+If MAType = "X" then
+Begin
+FastMA = XAverage(Close, FastMAperiod);
+MedMA = XAverage(Close, MedMAperiod);
+SlowMA = XAverage(Close, SlowMAperiod);
+end
+Else
+begin
+FastMA = AverageFC(Close, FastMAperiod );
+MedMA = AverageFC(Close, MedMAperiod);
+SlowMA = AverageFC(Close, SlowMAperiod);
+//Define HTF MAs
+FastMA_HTF1 = AverageFC(Close, FastMAperiod*BarShift1);
+MedMA_HTF1 = AverageFC(Close, MedMAperiod*BarShift1);
+SlowMA_HTF1 = AverageFC(Close, SlowMAperiod*BarShift1);
+end;
+
+XSlowMA = Average(Close, SlowMAperiod);
+
+MyMACD3 = MACD( Close, FastLength, SlowLength ) ;
+MACDAvg3 = XAverage( MyMACD3, MACDLength ) ;
+MACDDiff3 = MyMACD3 - MACDAvg3 ;
+
+RSI3 = rsi(Close, 6);
+//Define Higher Timeframe Bars
+//{
+If Bartype = 1 or Bartype = 2 then
+BEGIN
+if CurrentBar = 1 then begin
+	if UseFile then
+		Value1 = ADE.OpenMap(Class, Sym, Interval1);
+		Value2 = ADE.OpenMap(Class, Sym, Interval2);
+
+	if DeriveBars <> 0 and Class <> "OHLCV" then
+		Value1 = ADE.RaiseError("Higher timeframe bars can only be derived for the 'OHLCV' class.");
+
+end;
+{
+if (DeriveBars = 0 or ADE.DeriveBigBar(Interval1))  and Interval1 >= Barinterval and mod(Interval1, Barinterval)=0 then begin
+	if ADE.OnNextBar(Class, Sym, Interval1) then Begin
+//		MyMACD1 = ADF.MACD(Class, Sym, Interval1, ADE.BarID, "Close", FastLength, SlowLength);
+
+//		PrevMACDAvg1 = MACDAvg1;
+//		MACDAvg1 = PrevMACDAvg1 + SmoothingFactor * ( MyMACD1 - PrevMACDAvg1 );
+			
+//		MACDDiff1 = MyMACD1 - MACDAvg1;
+		SMA1 = ADF.Average(Class, Sym, Interval1, ADE.BarID, "Close", SlowMAperiod);
+//		RSI1 = ADF.RSI(Class, Sym, Interval1, ADE.BarID, "Close", 6);
+	end;
+end;
+	
+if (DeriveBars = 0 or ADE.DeriveBigBar(Interval2))  and Interval2 >= Barinterval and mod(Interval2, Barinterval)=0 then begin
+	if ADE.OnNextBar(Class, Sym, Interval2) then Begin
+//		MyMACD2 = ADF.MACD(Class, Sym, Interval2, ADE.BarID, "Close", FastLength, SlowLength);
+
+//		PrevMACDAvg2 = MACDAvg2;
+//		MACDAvg2 = PrevMACDAvg2 + SmoothingFactor * ( MyMACD2 - PrevMACDAvg2 );
+			
+//		MACDDiff2 = MyMACD2 - MACDAvg2;
+		SMA2 = ADF.Average(Class, Sym, Interval2, ADE.BarID, "Close", SlowMAperiod);
+	end;
+end;
+}
+//SMA1 = ADF.Average(Class, Sym, Interval1, ADE.BarID, "Close", SlowMAperiod);
+//SMA2 = ADF.Average(Class, Sym, Interval2, ADE.BarID, "Close", SlowMAperiod);
+
+
+
+END;
+//}
+
+ATR = AvgTrueRange(14);
+
+//*****Check if SHORTTriggered has been cancelled*******
+If (high[0] > SlowMA[0] or high[0] > XSlowMA[0] or absvalue(high[0]-SlowMA[0])< ATR*0.2 or absvalue(high[0]-XSlowMA[0])< ATR*0.2) then ShortTriggered = false;
+//*****Check if LONGTriggered has been cancelled*******
+If (low[0] < SlowMA[0] or low[0] < XSlowMA[0] or absvalue(low[0]-SlowMA[0])< ATR*0.2 or absvalue(low[0]-XSlowMA[0])< ATR*0.2) then LongTriggered = false;
+
+
+
+//Check for longs signals
+//*******Temporary checks with 5 crossing the 8sma
+Longsetup = Close[0] > BandHigh[0] and Close[0] > SlowMA[0] and FastMA[0] > MedMA[0] and FastMA[0] > FastMA[1] and MedMA[0] > MedMA[1];
+Shortsetup = Close[0] < BandLow[0] and Close[0] < SlowMA[0] and FastMA[0] < MedMA[0] and FastMA[0] < FastMA[1] and MedMA[0] < MedMA[1];
+//+++++++Original Code
+{
+Longsetup = Close[0] > BandHigh[0] and Close[0] > SlowMA[0] and FastMA[0] > MedMA[0] and FastMA[0] > FastMA[1] and MedMA[0] > MedMA[1]//Longsetup = Close[0] > BandHigh[0] and FastMA[0] > MedMA[0] and FastMA[0] > SlowMA[0] and SlowMA[0] > SlowMA[1] 
+and (MACDDiff3[0] > 0 or (MACDDiff3[0]>MACDDiff3[1] and absvalue(MACDDiff3[0])<0.5*absvalue(AverageFC(MACDDiff3[0],6))));
+
+Shortsetup = Close[0] < BandLow[0] and Close[0] < SlowMA[0] and FastMA[0] < MedMA[0] and FastMA[0] < FastMA[1] and MedMA[0] < MedMA[1]//Shortsetup = Close[0] < BandLow[0] and FastMA[0] < MedMA[0] and FastMA[0] < SlowMA[0] and SlowMA[0] < SlowMA[1]
+and (MACDDiff3[0] < 0 or (MACDDiff3[0]<MACDDiff3[1] and absvalue(MACDDiff3[0])<0.5*absvalue(AverageFC(MACDDiff3[0],6))));
+}
+
+If TimeNow >= Starttime and TimeNow <= EndTime then // then
+BEGIN
+
+If (LongTriggered = false and Longsetup = true) then
+begin
+	LongTriggered = true;
+	//Plot1( Low-Offset, "Lng", AlertLngColor );
+	Alert("Long--" + Symbol + "--" + Numtostr(BarInterval,0));
+	StpRng = Maxlist(close[0]-Low[0], ATR * ATRmultiplier, close[0] - BandLow[0]);
+	TP1 = Close[0] + Tgt1*StpRng;
+	TP2 = Close[0] + Tgt2*StpRng;
+	TP3 = Close[0] + Tgt3*StpRng;
+	STP1 = Close[0] - StpRng;
+//{
+	//****Setup Rating Calcs*****
+			
+			SlowMA_Rating = 0;
+			HTF1_Rating = 0;//SMA2[Interval_1 / Bartime];
+			If SlowMA[0] > SlowMA[1] then SlowMA_Rating = 1;
+			If SlowMA[0] > SlowMA[Barshift1] then SlowMA_Rating = SlowMA_Rating + 2;
+//			If RSI1[0] > RSI1[1] and RSI1[0] > 55 then RSI_Rating = 2
+//			Else RSI_Rating = 0;
+//			If RSI3[0] > RSI3[1] and RSI1[0] > 55 then RSI_Rating +=1;
+			//////////////If SMA1[0] > SMA1[BarShift1] then HTF1_Rating = 1;
+			If FastMA_HTF1[0] > FastMA_HTF1[Barshift1] and MedMA_HTF1[0] > MedMA_HTF1[Barshift1] and FastMA_HTF1[0] > MedMA_HTF1[0] then HTF1_Rating = 1;
+			If SlowMA_HTF1[0] > SlowMA_HTF1[Barshift1] then HTF1_Rating = HTF1_Rating + 2;
+{			MACD1_Rating = 0;
+			if MACDDiff1[0] > 0 then MACD1_Rating += 1;
+			If MACDDiff1[0] > MACDDiff1[1] then MACD1_Rating += 2;
+			
+			MACD2_Rating = 0;		
+			if MACDDiff2[0] > 0 then MACD2_Rating += 1;
+			If MACDDiff2[0] > MACDDiff2[1] then MACD2_Rating += 2;
+			
+			MACD3_Rating = 0;
+			if MACDDiff3[0] > 0 then MACD3_Rating += 1;
+			If MACDDiff3[0] > MACDDiff3[1] then MACD3_Rating += 2;
+}			
+			
+//		SetupRating = numtostr(RSI_Rating,0) + numtostr(MACD1_Rating,0) + numtostr(MACD2_Rating,0) + numtostr(MACD3_Rating,0);
+//		SetupRating = numtostr(SMA1_Rating,3) + " , " + numtostr(SMA2_Rating,3);
+		SetupRating = numtostr(SlowMA_Rating,0) + numtostr(HTF1_Rating,0);	
+//}
+	//If (MACDDiff1[0] > 0 or (MACDDiff1[0]>MACDDiff1[1] and absvalue(MACDDiff1[0])<0.5*absvalue(AverageFC(MACDDiff1[0],6)))) then TgtColor = TargetColor else TgtColor = NullTradeColor;
+	TgtColor = TargetColor;
+	Plot3( TP1, "e_TP1", TgtColor, default, 2);
+	Plot4( TP2, "e_TP2", TgtColor, Default,3);
+	Plot5( TP3, "e_TP3", TgtColor, default, 2);
+	Plot6( STP1, "e_STP1", StopColor, default, 3);
+	Plot7( StpRng, "e_RISK", black);
+	//Plot12( (numtostr(Tgt1+Tgt2+Tgt3,1)+ " : 1"),  "R:R", black);
+	Plot8( Tgt1*StpRng, "e_Tgt1", white);
+	Plot9( Tgt2*StpRng, "e_Tgt2", white);
+	Plot10( Tgt3*StpRng, "e_Tgt3", white);
+	Value10 = Text_New(Date, Time, STP1 - ATR * 1, SetupRating);
+	Text_SetStyle(Value10, 2, 1);
+	Value30 = Text_SetColor(Value10, lightgray);
+	SetupRating = "";
+	//Playsound
+end
+Else if (ShortTriggered = false and Shortsetup = true) then
+Begin
+	ShortTriggered = true;
+	//Plot2( High+Offset, "Sht", AlertShtColor );
+	Alert("Short--" + Symbol + "--" + Numtostr(BarInterval,0));
+	StpRng = Maxlist(high[0]-close[0], ATR * ATRmultiplier, BandHigh[0] - close[0]);
+	TP1 = Close[0] - Tgt1*StpRng;
+	TP2 = Close[0] - Tgt2*StpRng;
+	TP3 = Close[0] - Tgt3*StpRng;
+	STP1 = Close[0] + StpRng;
+//{
+	//****Setup Rating Calcs*****
+			SlowMA_Rating = 0;
+			HTF1_Rating = 0;
+//			SMA1_Rating = SMA1[0];
+//			SMA2_Rating = SMA1[1];
+			If SlowMA[0] < SlowMA[1] then SlowMA_Rating = 1;
+			If SlowMA[0] < SlowMA[Barshift1] then SlowMA_Rating = SlowMA_Rating + 2;
+//			If RSI1[0] < RSI1[1] and RSI1[0] < 45 then RSI_Rating = 2
+//			Else RSI_Rating = 0;
+//			If RSI3[0] < RSI3[1] and RSI1[0] < 45 then RSI_Rating +=1;
+			//////////////If SMA1[0] < SMA1[BarShift1] then SMA1_Rating = 1;
+			If FastMA_HTF1[0] < FastMA_HTF1[Barshift1] and MedMA_HTF1[0] < MedMA_HTF1[Barshift1] and FastMA_HTF1[0] < MedMA_HTF1[0] then HTF1_Rating = 1;
+			If SlowMA_HTF1[0] < SlowMA_HTF1[Barshift1] then HTF1_Rating = HTF1_Rating + 2;
+			
+{			MACD1_Rating = 0;
+			if MACDDiff1[0] < 0 then MACD1_Rating += 1;
+			If MACDDiff1[0] < MACDDiff1[1] then MACD1_Rating += 2;
+			
+			MACD2_Rating = 0;		
+			if MACDDiff2[0] < 0 then MACD2_Rating += 1;
+			If MACDDiff2[0] < MACDDiff2[1] then MACD2_Rating += 2;
+			
+			MACD3_Rating = 0;
+			if MACDDiff3[0] < 0 then MACD3_Rating += 1;
+			If MACDDiff3[0] < MACDDiff3[1] then MACD3_Rating += 2;
+}			
+
+//		SetupRating = numtostr(RSI_Rating,0) + numtostr(MACD1_Rating,0) + numtostr(MACD2_Rating,0) + numtostr(MACD3_Rating,0);
+//		SetupRating = numtostr(SMA1_Rating,3) + " , " + numtostr(SMA2_Rating,3);
+		SetupRating = numtostr(SlowMA_Rating,0) + numtostr(HTF1_Rating,0);
+	
+//}
+	TgtColor = TargetColor;
+{
+	Plot7( TP1, "sTP1", TgtColor, default, 2);
+	Plot8( TP2, "sTP2", TgtColor, default, 3);
+	Plot9( TP3, "sTP3", TgtColor, default, 2);
+	Plot10( STP1, "sSTP1", StopColor, default, 3);
+	Plot15( StpRng, "RISK", black);
+	//Plot16( (numtostr(Tgt1+Tgt2+Tgt3,1)+ " : 1"),  "R:R", black);
+	Plot17( Tgt1*StpRng, "TP1", white);
+	Plot18( Tgt2*StpRng, "TP2", white);
+	Plot19( Tgt3*StpRng, "TP3", white);
+}	
+	Value11 = Text_New(Date, Time, STP1 + ATR * 1, SetupRating);
+	Text_SetStyle(Value11, 2, 1);
+	Value31 = Text_SetColor(Value11, lightgray); 
+	SetupRating = "";
+	
+	Plot3( TP1, "e_TP1", TgtColor, default, 2);
+	Plot4( TP2, "e_TP2", TgtColor, Default,3);
+	Plot5( TP3, "e_TP3", TgtColor, default, 2);
+	Plot6( STP1, "e_STP1", StopColor, default, 3);
+	Plot7( StpRng, "e_Risk", black);
+	//Plot12( (numtostr(Tgt1+Tgt2+Tgt3,1)+ " : 1"),  "R:R", black);
+	Plot8( Tgt1*StpRng, "e_Tgt1", white);
+	Plot9( Tgt2*StpRng, "e_Tgt2", white);
+	Plot10( Tgt3*StpRng, "e_Tgt3", white);
+	
+end
+else
+Begin	
+	NoPlot( 1 ); { remove the marker }
+	Noplot( 2 );
+	NoPlot( 3 ); { remove the marker }
+	Noplot( 4 );
+	NoPlot( 5 ); { remove the marker }
+	Noplot( 6 );
+	Noplot( 7 );
+	NoPlot( 8 ); { remove the marker }
+	Noplot( 9 );
+	NoPlot( 10 ); { remove the marker }
+	Noplot( 11 );
+	Noplot( 12 );
+	NoPlot( 13 ); { remove the marker }
+	Noplot( 14 );
+	NoPlot( 15 ); { remove the marker }
+	Noplot( 16 );
+	Noplot( 17 );	
+	Noplot( 18 );
+	Noplot( 19 );	
+	Noplot( 20 );
+end;	
+	
+END;

@@ -1,0 +1,85 @@
+//SJC_MA_MTF_RA
+
+Inputs:
+UpColorFG ( black ), UpColorBG (Green), DnColorFG (white), DnColorBG (Red), AlertColorFG ( Yellow ), AlertColorBG ( Black ),
+MA3period ( 21 );
+
+
+Variables:
+UB (0), LB (0), Dir(0), //Dir1(0),
+MA3 ( 0 ), Trend ( 0 );
+
+UB = XAverage(high,5);
+LB = XAverage(low,5);
+MA3 = AverageFC(close, MA3period);
+
+
+If (close[1] < LB[1]) and (close[0] > LB[0]) and (close[0] > open[0]) and high[0] < UB[0] {and MA3[0] > MA3[1]} then //(close[1] < open[1]) and (close[1] < LB[1]) and (close[0] > LB[0]) then
+Begin
+	Dir = 1;
+	If MA3[0] > MA3[1] then Trend = 1;
+	end
+else if (close[1] > UB[1]) and (close[0] < UB[0]) and (close[0] < open[0]) and low[0] > LB[0] {and MA3[0] < MA3[1]} then//(close[1] > open[1]) and (close[1] > UB[1]) and (close[0] < UB[0]) then
+Begin
+	Dir = -1;
+	If MA3[0] < MA3[1] then Trend = -1;
+end
+Else
+Begin
+	Dir = 0;
+	Trend = 0;
+end;
+
+//Dir1 = Dir[1];
+//Trend1 = Trend[1];
+
+If Dir = 1 then
+begin
+	Plot1("L", "B1");
+	If Trend = 1 then
+	Begin
+		SetPlotColor(1, AlertColorFG);
+		Setplotbgcolor(1, AlertColorBG);
+		Alert("BANDS - Lng--" + Symbol + "--" + Numtostr(BarInterval,0));
+	End
+	Else
+	Begin
+		SetPlotColor(1,UpColorFG);
+		Setplotbgcolor(1, UpcolorBG);
+	End;	
+end
+else if Dir = -1 then
+begin
+	Plot1("S", "B1");
+	If Trend = -1 then
+	Begin
+		SetPlotColor(1, AlertColorFG);
+		Setplotbgcolor(1, AlertColorBG);
+		Alert("BANDS - Sht--" + Symbol + "--" + Numtostr(BarInterval,0));
+	End
+	Else
+	Begin
+		SetPlotColor(1,DnColorFG);
+		Setplotbgcolor(1, DnColorBG);;
+	End;
+end
+Else
+NoPlot(1);
+{
+If Dir = 1 then
+begin
+	Plot2("L", "B0");
+	SetPlotColor(2,UpColorFG);
+	Setplotbgcolor(2, UpColorBG);
+	Alert("Lng--" + Symbol + "--" + Numtostr(BarInterval,0));	
+end
+else if Dir = -1 then
+begin
+	Plot2("S", "B0");
+	SetPlotColor(2,DnColorFG);
+	Setplotbgcolor(2, DnColorBG);
+	Alert("Sht--" + Symbol + "--" + Numtostr(BarInterval,0));
+end
+Else
+NoPlot(2);
+}

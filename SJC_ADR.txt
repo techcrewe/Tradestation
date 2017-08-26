@@ -1,0 +1,40 @@
+//SJC_ADR
+
+inputs:
+	ATRLength( 14 ),
+	AlertLength( 14 ),
+	RngHitBGColor( Yellow ),
+	RngHitFGColor( Black ) ;
+
+variables:
+	ATR( 0 ),
+	Rng( 0 );
+
+
+ATR = AvgTrueRange( ATRLength ) ;
+Rng = HighD(0) - LowD(0); //Range;
+
+Plot1( ATR, "ATR" ) ;
+Plot2( Rng,  "Today" );
+
+If Rng >= ATR then
+Begin
+	Setplotbgcolor(2, RngHitBGColor );
+	Setplotcolor(2, RngHitFGColor );
+End
+Else
+Begin
+	Setplotbgcolor(2, Black );
+	Setplotcolor(2, White );
+End;
+
+{ Alert criteria }
+if HighestBar( ATR, AlertLength ) = 0 then
+	Alert( "Indicator at high" ) 
+else if LowestBar( ATR, AlertLength ) = 0 then
+	Alert( "Indicator at low" ) ;
+
+
+{ ** Copyright (c) 2001 - 2010 TradeStation Technologies, Inc. All rights reserved. ** 
+  ** TradeStation reserves the right to modify or overwrite this analysis technique 
+     with each release. ** }
